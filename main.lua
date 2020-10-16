@@ -1,12 +1,18 @@
+--Distance Measuring Electronics v.1.2 by Rio --> Visual distance guage
 DME = {}
 DME.version = "1.2"
 DMEtimer = Timer()
 
+DME.distance = iup.text{
+	size = "300x",
+	padding = "50x50",
+}
+
 DMEPBH = iup.stationprogressbar{
 	visible = "YES",
 	active = "NO",
-	minvalue = 200,
-	maxvalue = 500,
+	minvalue = tonumber(DME.distance.value) or 200,
+	maxvalue = (tonumber(DME.distance.value) or 200) *3,
 	uppercolor = "0 255 0",
 	lowercolor = "0 128 255",
 	RASTERSIZE = "100x15",
@@ -17,7 +23,7 @@ DMEPBL = iup.stationprogressbar{
 	visible = "YES",
 	active = "NO",
 	minvalue = 0,
-	maxvalue = 200,
+	maxvalue = tonumber(DME.distance.value) or 200,
 	uppercolor = "0 255 0",
 	lowercolor = "0 128 255",
 	RASTERSIZE = "100x15",
@@ -29,35 +35,51 @@ DMEbox = iup.hbox{
 	DMEPBL,
 	MARGIN = "x60",
 	}
+	
+local close = iup.button{
+	title = 'Close',
+	action = function(self)
+		DMEdialog:hide()
+	end,
+}
 
-DMEframe = 	iup.frame{
-	iup.hbox{
-		iup.fill{},
-		DMEPBH,
-		DMEPBL,
-		iup.fill{},
-	},
-EXPAND = "YES",
-TITLE = "DMEframe",
+local save = iup.button{ title = "Save", action = function(self)
+		if DME.distance.value ~= "" then
+			DMEPBL.maxvalue = tonumber(DME.distance.value)
+			DMEPBH.minvalue = tonumber(DME.distance.value)
+			DMEPBH.maxvalue = tonumber(DME.distance.value) * 3
+			DMEwrite()
+			DME.cmd()
+		end
+	end
 }
 
 DMEdialog = iup.dialog{
-	DMEframe,
-	close,
---	FULLSCREEN = "NO",
-	EXPAND = "NO",
---	RESIZE = "NO",
+	iup.hbox{
+		iup.vbox{
+			iup.label{title = "Distance"},
+			DME.distance,
+			iup.hbox{
+			save,
+			close,
+			},
+		alignment = "ACENTER",
+		},
+	},
+	EXPAND = "YES",
+	RESIZE = "NO",
 --	SIZE = 'QUARTERxQUARTER',
-	TITLE = "DMEdialog",
-	defaultesc = close,
+	TITLE = "Enter preferred Distance",
+	TOPMOST = "YES",
+	DEFAULTESC = close,
+	DEFAULTENTER = save,
 }
 
 function DME.cmd ()
-	DMEupdate()
 	print ("Welcome to DME")
 	if DMEdialog.visible == "YES" then
 		HideDialog(DMEdialog)
-	else iup.Show(DMEdialog, iup.CENTER, iup.CENTER)
+	else ShowDialog(DMEdialog, iup.CENTER, iup.CENTER)
 	end
 end
 
@@ -66,9 +88,11 @@ RegisterUserCommand('dme', DME.cmd)
 function DME:OnEvent(event, data)
 	if event == "PLAYER_ENTERED_GAME" then
 		print ("DME v"..DME.version)
+		DME.distance.value = gkini.ReadString("DME", "distance", "200")
 		iup.Append(HUD.distancebar, DMEbox)
 		DMEupdate()
 	end
+	
 	if event == "PLAYER_LOGGED_OUT" then
 		DMEtimer:Kill()
 		DMEPBH.lowercolor = "0 128 255"
@@ -76,7 +100,7 @@ function DME:OnEvent(event, data)
 		iup.Refresh(HUD.distancebar)
 	end
 	
-	if event == "TARGET_CHANGED" or "TERMINATE" then
+	if event == "TARGET_CHANGED" then
 		DMEupdate()	
 	end
 	
@@ -110,5 +134,6 @@ function DMEupdate()
 	iup.Refresh(HUD.distancebar)
 end
 
-
-
+function DMEwrite()
+	gkini.WriteString("DME", "distance", ""..tostring(DME.distance.value))
+end
